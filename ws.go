@@ -29,11 +29,17 @@ type (
 	}
 
 	Handlers interface {
+		SetConnCtrlr(ctrlr ConnController)
 		OnAuth(token string) (id uint, ok bool)
 		OnOnline(id uint)
 		OnText(id uint, msg []byte)
 		OnSend(id uint, msg []byte) (ok bool)
 		OnOffline(id uint)
+	}
+
+	ConnController interface {
+		WriteMessage(id uint, msg []byte) (err error)
+		CloseConnection(id uint) (err error)
 	}
 
 	Config struct {
@@ -104,6 +110,8 @@ func Start(cfg *Config) (*WS, error) {
 			}
 		}
 	}()
+
+	cfg.Handlers.SetConnCtrlr(&w)
 	return &w, nil
 }
 
@@ -125,7 +133,7 @@ func (w *WS) handle(conn net.Conn) {
 			return nil
 		},
 		OnHeader: func(key, value []byte) error {
-			if string(key) == "Authorization" {
+			if id == 0 && string(key) == "Authorization" {
 				v := string(value)
 				switch {
 				case strings.HasPrefix(v, "Bearer "), strings.HasPrefix(v, "Basic "):
@@ -247,6 +255,15 @@ func (w *WS) WriteMessage(id uint, msg []byte) error {
 		return ErrConnNotFound
 	}
 	return nil
+}
+
+func (w *WS) CloseConnection(id uint) error {
+	if conn, ok := w.conns[id]; ok {
+		wsutil.WriteServerMessage(conn, ws.OpClose, []byte{0x03, 0xEA})
+		return conn.Close()
+	}
+	w.l.Printf("Connection not found for device: %d\n", id)
+	return ErrConnNotFound
 }
 
 func (w *WS) onAuthWrapper(token string) (id uint, ok bool) {
