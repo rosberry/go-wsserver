@@ -45,6 +45,10 @@ type MyHandler struct{
 	cc	wsserver.ConnController
 }
 
+func GetGetHandlers() *MyHandler {
+	return &MyHandler{}
+}
+
 func (h *MyHandler) OnAuth(token string) (id uint, ok bool) {
 	//do anything
 	//get id by token
