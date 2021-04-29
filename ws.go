@@ -54,6 +54,7 @@ type (
 		addr  string
 		h     Handlers
 		l     Logger
+		mutex *sync.RWMutex
 	}
 
 	Message struct {
@@ -93,6 +94,7 @@ func Start(cfg *Config) (*WS, error) {
 		conns: make(map[uint]net.Conn),
 		h:     cfg.Handlers,
 		l:     cfg.Logger,
+		mutex: &sync.RWMutex{},
 	}
 
 	ln, err := net.Listen("tcp", cfg.Addr)
@@ -156,6 +158,7 @@ func (w *WS) handle(conn net.Conn) {
 		},
 	}
 	if _, err := u.Upgrade(conn); err == nil {
+		w.mutex.Lock()
 		if existConn, ok := w.conns[id]; ok {
 			if existConn != conn {
 				err := existConn.Close()
@@ -165,6 +168,7 @@ func (w *WS) handle(conn net.Conn) {
 			}
 		}
 		w.conns[id] = conn
+		w.mutex.Unlock()
 
 		wg := &sync.WaitGroup{}
 		wg.Add(1)
@@ -212,7 +216,10 @@ func (w *WS) handle(conn net.Conn) {
 			}
 		}
 		if w.conns[id] == conn {
+			w.mutex.Lock()
 			delete(w.conns, id)
+			w.mutex.Unlock()
+
 			wg.Wait()
 			go w.onOfflineWrapper(id)
 		}
@@ -258,6 +265,8 @@ func readMessage(rw io.ReadWriter, chMsg chan Message) {
 
 func (w *WS) WriteMessage(id uint, msg []byte) error {
 	if w.onSendWrapper(id, msg) {
+		w.mutex.RLock()
+		defer w.mutex.RUnlock()
 		if conn, ok := w.conns[id]; ok {
 			err := wsutil.WriteServerMessage(conn, ws.OpText, msg)
 			if err != nil {
@@ -272,6 +281,8 @@ func (w *WS) WriteMessage(id uint, msg []byte) error {
 }
 
 func (w *WS) CloseConnection(id uint) error {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
 	if conn, ok := w.conns[id]; ok {
 		wsutil.WriteServerMessage(conn, ws.OpClose, []byte{0x03, 0xEA})
 		return conn.Close()
