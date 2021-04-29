@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gobwas/ws"
@@ -157,7 +158,9 @@ func (w *WS) handle(conn net.Conn) {
 	if _, err := u.Upgrade(conn); err == nil {
 		w.conns[id] = conn
 
-		go w.onOnlineWrapper(id)
+		wg := &sync.WaitGroup{}
+		wg.Add(1)
+		go w.onOnlineWrapper(id, wg)
 
 		chMsg := make(chan Message)
 		afterPing := false
@@ -200,8 +203,11 @@ func (w *WS) handle(conn net.Conn) {
 				}
 			}
 		}
-		delete(w.conns, id)
-		go w.onOfflineWrapper(id)
+		if w.conns[id] == conn {
+			delete(w.conns, id)
+			wg.Wait()
+			go w.onOfflineWrapper(id)
+		}
 	} else {
 		w.l.Printf("%s: upgrade error: %v", nameConn(conn), err)
 	}
@@ -276,7 +282,8 @@ func (w *WS) onAuthWrapper(token string) (id uint, ok bool) {
 	return w.h.OnAuth(token)
 }
 
-func (w *WS) onOnlineWrapper(id uint) {
+func (w *WS) onOnlineWrapper(id uint, wg *sync.WaitGroup) {
+	defer wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
 			w.l.Printf("[Recovery OnOnline] panic recovered:\n%s\n\n", r)
