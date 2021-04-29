@@ -156,6 +156,14 @@ func (w *WS) handle(conn net.Conn) {
 		},
 	}
 	if _, err := u.Upgrade(conn); err == nil {
+		if existConn, ok := w.conns[id]; ok {
+			if existConn != conn {
+				err := existConn.Close()
+				if err != nil {
+					w.l.Print("Close connection err:", err)
+				}
+			}
+		}
 		w.conns[id] = conn
 
 		wg := &sync.WaitGroup{}
