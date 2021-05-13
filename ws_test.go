@@ -61,6 +61,7 @@ func TestConnectHandlers(t *testing.T) {
 				})
 			})
 			Convey("Then 'OnOnline' handler should be runned", func() {
+				time.Sleep(time.Second*1) //TODO: How test without sleep??
 				So(runned, ShouldContain, "OnOnline")
 			})
 			Reset(func() {
@@ -117,6 +118,7 @@ func TestConnectWithAuthorizationHeader(t *testing.T) {
 				})
 			})
 			Convey("Then 'OnOnline' handler should be runned", func() {
+				time.Sleep(time.Second*1) //TODO: How test without sleep??
 				So(runned, ShouldContain, "OnOnline")
 			})
 			Reset(func() {
