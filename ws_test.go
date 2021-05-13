@@ -16,6 +16,14 @@ import (
 var wsServer *WS
 var runned []string
 
+const (
+	onAuth = "OnAuth"
+	onOnline = "OnOnline"
+	onText = "OnText"
+	onSend = "OnSend"
+	onOffline = "OnOffline"
+)
+
 func TestMain(m *testing.M) {
 	var err error
 
@@ -30,23 +38,24 @@ func TestMain(m *testing.M) {
 }
 
 type THandlers struct{}
+
 func (h THandlers) SetConnCtrlr(ctrlr ConnController) {}
 func (h THandlers) OnAuth(token string) (id uint, ok bool) {
-	runned = append(runned, "OnAuth")
+	runned = append(runned, onAuth)
 	return 1, true
 }
-func (h THandlers) OnOnline(id uint){
-	runned = append(runned, "OnOnline")
+func (h THandlers) OnOnline(id uint) {
+	runned = append(runned, onOnline)
 }
-func (h THandlers) OnText(id uint, msg []byte){
-	runned = append(runned, "OnText")
+func (h THandlers) OnText(id uint, msg []byte) {
+	runned = append(runned, onText)
 }
-func (h THandlers) OnSend(id uint, msg []byte) (ok bool){
-	runned = append(runned, "OnSend")
+func (h THandlers) OnSend(id uint, msg []byte) (ok bool) {
+	runned = append(runned, onSend)
 	return true
 }
-func (h THandlers) OnOffline(id uint){
-	runned = append(runned, "OnOffline")
+func (h THandlers) OnOffline(id uint) {
+	runned = append(runned, onOffline)
 }
 
 func TestConnectHandlers(t *testing.T) {
@@ -55,14 +64,14 @@ func TestConnectHandlers(t *testing.T) {
 			runned = make([]string, 0)
 			c := setWSConnection()
 			Convey("Then 'OnAuth' handler should be runned", func() {
-				So(runned, ShouldContain, "OnAuth")
+				So(runned, ShouldContain, onAuth)
 				Convey("And 'OnAuth' should be first", func() {
-					So(runned[0], ShouldEqual, "OnAuth")
+					So(runned[0], ShouldEqual, onAuth)
 				})
 			})
 			Convey("Then 'OnOnline' handler should be runned", func() {
-				time.Sleep(time.Second*1) //TODO: How test without sleep??
-				So(runned, ShouldContain, "OnOnline")
+				time.Sleep(time.Second * 1) //TODO: How test without sleep??
+				So(runned, ShouldContain, onOnline)
 			})
 			Reset(func() {
 				c.Close()
@@ -77,8 +86,8 @@ func TestConnectWithoutAuth(t *testing.T) {
 			runned = make([]string, 0)
 			u := url.URL{
 				Scheme: "ws",
-				Host: "localhost:6008",
-				Path: "/",
+				Host:   "localhost:6008",
+				Path:   "/",
 			}
 			_, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 			if err != nil {
@@ -101,8 +110,8 @@ func TestConnectWithAuthorizationHeader(t *testing.T) {
 			runned = make([]string, 0)
 			u := url.URL{
 				Scheme: "ws",
-				Host: "localhost:6008",
-				Path: "/",
+				Host:   "localhost:6008",
+				Path:   "/",
 			}
 			c, _, err := websocket.DefaultDialer.Dial(u.String(), http.Header{
 				"Authorization": []string{"Bearer 123456"},
@@ -112,14 +121,14 @@ func TestConnectWithAuthorizationHeader(t *testing.T) {
 			}
 
 			Convey("Then 'OnAuth' handler should be runned", func() {
-				So(runned, ShouldContain, "OnAuth")
+				So(runned, ShouldContain, onAuth)
 				Convey("And 'OnAuth' should be first", func() {
-					So(runned[0], ShouldEqual, "OnAuth")
+					So(runned[0], ShouldEqual, onAuth)
 				})
 			})
 			Convey("Then 'OnOnline' handler should be runned", func() {
-				time.Sleep(time.Second*1) //TODO: How test without sleep??
-				So(runned, ShouldContain, "OnOnline")
+				time.Sleep(time.Second * 1) //TODO: How test without sleep??
+				So(runned, ShouldContain, onOnline)
 			})
 			Reset(func() {
 				c.Close()
@@ -135,8 +144,8 @@ func TestReceiveMessageHandlers(t *testing.T) {
 		Convey("When we receive message", func() {
 			c.WriteMessage(websocket.TextMessage, []byte("Hello websocket! I'm client"))
 			Convey("Then 'OnText' handler should be runned", func() {
-				time.Sleep(time.Second*1) //TODO: How test without sleep??
-				So(runned, ShouldContain, "OnText")
+				time.Sleep(time.Second * 1) //TODO: How test without sleep??
+				So(runned, ShouldContain, onText)
 			})
 		})
 		Reset(func() {
@@ -155,7 +164,7 @@ func TestSendMessageHandlers(t *testing.T) {
 				connID = 1
 				err := wsServer.WriteMessage(connID, []byte("Hello, i'm ws server"))
 				Convey("Then 'OnSend' handler should be runned", func() {
-					So(runned, ShouldContain, "OnSend")
+					So(runned, ShouldContain, onSend)
 				})
 				Convey("Then err should be nil", func() {
 					So(err, ShouldBeNil)
@@ -185,8 +194,8 @@ func TestDisconnectHandlers(t *testing.T) {
 		Convey("When client close connection with server", func() {
 			c.Close()
 			Convey("Then 'OnOffline' handler should be runned", func() {
-				time.Sleep(time.Second*1) //TODO: How test without sleep??
-				So(runned, ShouldContain, "OnOffline")
+				time.Sleep(time.Second * 1) //TODO: How test without sleep??
+				So(runned, ShouldContain, onOffline)
 			})
 		})
 		Reset(func() {
@@ -202,8 +211,8 @@ func TestCloseConnectionHandlers(t *testing.T) {
 		Convey("When server close connection with client", func() {
 			wsServer.CloseConnection(1)
 			Convey("Then 'OnOffline' handler should be runned", func() {
-				time.Sleep(time.Second*1) //TODO: How test without sleep??
-				So(runned, ShouldContain, "OnOffline")
+				time.Sleep(time.Second * 1) //TODO: How test without sleep??
+				So(runned, ShouldContain, onOffline)
 			})
 		})
 		Reset(func() {
@@ -214,9 +223,9 @@ func TestCloseConnectionHandlers(t *testing.T) {
 
 func setWSConnection() *websocket.Conn {
 	u := url.URL{
-		Scheme: "ws",
-		Host: "localhost:6008",
-		Path: "/",
+		Scheme:   "ws",
+		Host:     "localhost:6008",
+		Path:     "/",
 		RawQuery: "token=123456",
 	}
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
