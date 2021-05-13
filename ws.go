@@ -215,13 +215,16 @@ func (w *WS) handle(conn net.Conn) {
 				}
 			}
 		}
+		w.mutex.Lock()
 		if w.conns[id] == conn {
-			w.mutex.Lock()
 			delete(w.conns, id)
 			w.mutex.Unlock()
 
 			wg.Wait()
+
 			go w.onOfflineWrapper(id)
+		} else {
+			w.mutex.Unlock()
 		}
 	} else {
 		w.l.Printf("%s: upgrade error: %v", nameConn(conn), err)
