@@ -1,7 +1,7 @@
 package debugger
 
 import (
-	"github.com/k-sed/wsserver"
+	"github.com/rosberry/go-wsserver"
 )
 
 type (
