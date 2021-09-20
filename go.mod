@@ -1,4 +1,4 @@
-module guthub.com/rosberry/go-wsserver
+module github.com/rosberry/go-wsserver
 
 go 1.14
 
